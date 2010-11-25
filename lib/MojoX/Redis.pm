@@ -3,18 +3,30 @@ package MojoX::Redis;
 use strict;
 use warnings;
 
-our $VERSION = 0.4;
+our $VERSION = 0.5;
 use base 'Mojo::Base';
 
 use Mojo::IOLoop;
 use List::Util ();
 use Mojo::Util ();
+use Scalar::Util ();
 
 __PACKAGE__->attr(server   => '127.0.0.1:6379');
 __PACKAGE__->attr(ioloop   => sub { Mojo::IOLoop->singleton });
 __PACKAGE__->attr(error    => undef);
 __PACKAGE__->attr(timeout  => 300);
 __PACKAGE__->attr(encoding => 'UTF-8');
+
+sub DESTROY {
+    my $self = shift;
+
+    # Loop
+    return unless my $loop = $self->ioloop;
+
+    # Cleanup connection
+    $loop->drop($self->{_connection})
+        if $self->{_connection};
+}
 
 sub connect {
     my $self = shift;
@@ -27,6 +39,8 @@ sub connect {
     $self->server =~ m{^([^:]+)(:(\d+))?};
     my $address = $1;
     my $port = $3 || 6379;
+
+    Scalar::Util::weaken $self;
 
     # connect
     $self->{_connecting} = 1;
@@ -73,6 +87,20 @@ sub execute {
     $self->connect unless $self->{_connection};
     $self->_send_next_message;
 
+    return $self;
+}
+
+sub start {
+    my ($self) = @_;
+
+    $self->ioloop->start;
+    return $self;
+}
+
+sub stop {
+    my ($self) = @_;
+
+    $self->ioloop->stop;
     return $self;
 }
 
@@ -139,6 +167,7 @@ sub _inform_queue {
 sub _read_wait_command {
     my ($self, $ioloop, $id, $chunk) = @_;
 
+    Scalar::Util::weaken $self;
     my $cmd = substr $chunk, 0, 1, '';
     if (!defined $chunk || $chunk eq '') {
 
@@ -152,19 +181,19 @@ sub _read_wait_command {
         if ($cmd ne '-') {
             $self->{_read_cb} = sub {
                 $self->_return_command_data(shift);
-                $self->_read_wait_command($ioloop, $id, shift);
+                $self->_read_wait_command($self->ioloop, $id, shift);
             };
         }
         else {
             $self->{_read_cb} = sub {
                 $self->error(shift->[0]);
                 $self->_return_command_data(undef);
-                $self->_read_wait_command($ioloop, $id, shift);
+                $self->_read_wait_command($self->ioloop, $id, shift);
             };
         }
 
         $ioloop->on_read($id => sub { $self->_read_string_command(@_); });
-        $self->_read_string_command($ioloop, $id, $chunk);
+        $self->_read_string_command($self->ioloop, $id, $chunk);
 
     }
     elsif ($cmd eq '$') {
@@ -172,7 +201,7 @@ sub _read_wait_command {
         # Bulk command, not a big deal
         $self->{_read_cb} = sub {
             $self->_return_command_data(shift);
-            $self->_read_wait_command($ioloop, $id, shift);
+            $self->_read_wait_command($self->ioloop, $id, shift);
         };
 
         # Yes, it should have leading $
@@ -181,7 +210,7 @@ sub _read_wait_command {
     elsif ($cmd eq '*') {
         $self->{_read_cb} = sub {
             $self->_return_command_data(shift);
-            $self->_read_wait_command($ioloop, $id, shift);
+            $self->_read_wait_command($self->ioloop, $id, shift);
         };
         $self->_read_multi_bulk_command($ioloop, $id, $chunk);
     }
@@ -312,29 +341,29 @@ __END__
 
 =head1 NAME
 
-L<MojoX::Redis> - asynchronous L<Redis> client for L<Mojo>.
+L<MojoX::Redis> - asynchronous Redis client for L<Mojolicious>.
 
 =head1 SYNOPSIS
 
     use MojoX::Redis;
 
-    # Create redis client 
-    my $redis = MojoX::Redis->new( server => '127.0.0.1:6379' );
+    my $redis = MojoX::Redis->new(server => '127.0.0.1:6379');
 
     # Execute some commands
-    $r->execute( ping, sub {
-        my ($redis, $res) = @_;
+    $redis->execute(ping,
+        sub {
+            my ($redis, $res) = @_;
 
-        if ( $res ) {
-            print "Got result: ", $res->[0], "\n";
-        } else {
-            print "Error: ", $redis->error, "\n";
-        }
-        $r->ioloop->stop;
-    }
+            if ($res) {
+                print "Got result: ", $res->[0], "\n";
+            }
+            else {
+                print "Error: ", $redis->error, "\n";
+            }
+      })
 
-    # ioloop should be running
-    $r->ioloop->start;
+      # Cleanup connection
+      ->execute(quit, sub { shift->stop })->start;
 
 =head1 DESCRIPTION
 
@@ -410,13 +439,19 @@ Returns error occured during command execution.
 Note that this method returns error code just from current command and
 can be used just in callback.
 
+=head2 C<start>
+
+    $redis->start;
+
+Starts IOLoop. Shortcut for $redis->ioloop->start;
+
 =head1 SEE ALSO
 
-L<Mojolicious>, L<Mojolicious::IOLoop>
+L<Mojolicious>, L<Mojo::IOLoop>
 
 =head1 AUTHOR
 
-Sergey Zasenko, C<d3fin3@gmail.com>.
+Sergey Zasenko, C<undef@cpan.org>.
 
 =head1 COPYRIGHT AND LICENSE
 
