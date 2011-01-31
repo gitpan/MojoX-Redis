@@ -4,7 +4,10 @@ lib/MojoX/Redis.pm
 LICENSE
 Makefile.PL
 MANIFEST			This list of files
+MANIFEST.SKIP
 README.pod
+t/leak.t
 t/pod.t
 t/redis.t
+t/redis_live.t
 META.yml                                 Module meta-data (added by MakeMaker)

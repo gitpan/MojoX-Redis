@@ -1,9 +1,9 @@
 --- #YAML:1.0
 name:               MojoX-Redis
-version:            0.5
+version:            0.7
 abstract:           ~
 author:
-    - Sergey Zasenko <d3fin3@gmail.com>
+    - Sergey Zasenko <undef@cpan.org>
 license:            unknown
 distribution_type:  module
 configure_requires:

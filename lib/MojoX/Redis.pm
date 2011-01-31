@@ -3,19 +3,63 @@ package MojoX::Redis;
 use strict;
 use warnings;
 
-our $VERSION = 0.5;
+our $VERSION = 0.7;
 use base 'Mojo::Base';
 
 use Mojo::IOLoop;
-use List::Util ();
-use Mojo::Util ();
+use List::Util   ();
+use Mojo::Util   ();
 use Scalar::Util ();
+use Carp 'croak';
 
 __PACKAGE__->attr(server   => '127.0.0.1:6379');
 __PACKAGE__->attr(ioloop   => sub { Mojo::IOLoop->singleton });
 __PACKAGE__->attr(error    => undef);
 __PACKAGE__->attr(timeout  => 300);
 __PACKAGE__->attr(encoding => 'UTF-8');
+__PACKAGE__->attr(
+    on_error => sub {
+        sub {
+            my $redis = shift;
+            warn "Redis error: ", $redis->error, "\n";
+          }
+    }
+);
+
+our @COMMANDS = qw/
+  append auth bgrewriteaof bgsave blpop brpop brpoplpush config_get config_set
+  config_resetstat dbsize debug_object debug_segfault decr decrby del discard
+  echo exec exists expire expireat flushall flushdb get getbit getrange getset
+  hdel hexists hget hgetall hincrby hkeys hlen hmget hmset hset hsetnx hvals
+  incr incrby info keys lastsave lindex linsert llen lpop lpush lpushx lrange
+  lrem lset ltrim mget monitor move mset msetnx multi persist ping psubscribe
+  publish punsubscribe quit randomkey rename renamenx rpop rpoplpush rpush
+  rpushx sadd save scard sdiff sdiffstore select set setbit setex setnx
+  setrange shutdown sinter sinterstore sismember slaveof smembers smove sort
+  spop srandmember srem strlen subscribe sunion sunionstore sync ttl type
+  unsubscribe unwatch watch zadd zcard zcount zincrby zinterstore zrange
+  zrangebyscore zrank zrem zremrangebyrank zremrangebyscore zrevrange
+  zrevrangebyscore zrevrank zscore zunionstore
+/;
+
+sub AUTOLOAD {
+    my ($package, $cmd) = our $AUTOLOAD =~ /^([\w\:]+)\:\:(\w+)$/;
+
+    Carp::croak(qq|Can't locate object method "$cmd" via "$package"|)
+        unless List::Util::first {$_ eq $cmd} @COMMANDS;
+
+    my $self = shift;
+
+    my $args = [@_];
+    my $cb   = $args->[-1];
+    if (ref $cb ne 'CODE') {
+        $cb = undef;
+    } else {
+        pop @$args;
+    }
+
+    $self->execute($cmd, $args, $cb);
+}
 
 sub DESTROY {
     my $self = shift;
@@ -25,14 +69,14 @@ sub DESTROY {
 
     # Cleanup connection
     $loop->drop($self->{_connection})
-        if $self->{_connection};
+      if $self->{_connection};
 }
 
 sub connect {
     my $self = shift;
 
     # drop old connection
-    if ($self->{_connection}) {
+    if ($self->connected) {
         $self->ioloop->drop($self->{_connection});
     }
 
@@ -55,6 +99,12 @@ sub connect {
     );
 
     return $self;
+}
+
+sub connected {
+    my $self = shift;
+
+    return $self->{_connection};
 }
 
 sub execute {
@@ -146,6 +196,10 @@ sub _on_error {
 
     $self->error($error);
     $self->_inform_queue;
+
+    $self->on_error->($self);
+
+    $ioloop->drop($id);
 }
 
 sub _on_hup {
@@ -153,6 +207,11 @@ sub _on_hup {
 
     $self->{error} ||= 'disconnected';
     $self->_inform_queue;
+
+    delete $self->{_message_queue};
+
+    delete $self->{_connecting};
+    delete $self->{_connection};
 }
 
 sub _inform_queue {
@@ -187,6 +246,7 @@ sub _read_wait_command {
         else {
             $self->{_read_cb} = sub {
                 $self->error(shift->[0]);
+                $self->on_error->($self);
                 $self->_return_command_data(undef);
                 $self->_read_wait_command($self->ioloop, $id, shift);
             };
@@ -350,7 +410,7 @@ L<MojoX::Redis> - asynchronous Redis client for L<Mojolicious>.
     my $redis = MojoX::Redis->new(server => '127.0.0.1:6379');
 
     # Execute some commands
-    $redis->execute(ping,
+    $redis->ping(
         sub {
             my ($redis, $res) = @_;
 
@@ -362,8 +422,18 @@ L<MojoX::Redis> - asynchronous Redis client for L<Mojolicious>.
             }
       })
 
+      # Work with keys
+      ->set(key => 'value')
+
+      ->get(key => sub {
+          my ($redis, $res) = @_;
+
+          print "Value of ' key ' is $res->[0]\n";
+      })
+
+
       # Cleanup connection
-      ->execute(quit, sub { shift->stop })->start;
+      ->quit(sub { shift->stop })->start;
 
 =head1 DESCRIPTION
 
@@ -405,8 +475,14 @@ Encoding used for stored data, defaults to C<UTF-8>.
 
 =head1 METHODS
 
-L<MojoX::Redis> inherits all methods from l<Mojo::Base> and implements
-the following ones.
+L<MojoX::Redis> supports Redis' methods.
+
+    $redis->set(key => 'value);
+    $redis->get(key => sub { ... });
+
+For more details take a look at C<execute> method.
+
+Also L<MojoX::Redis> implements the following ones.
 
 =head2 C<connect>
 
@@ -439,6 +515,15 @@ Returns error occured during command execution.
 Note that this method returns error code just from current command and
 can be used just in callback.
 
+=head2 C<on_error>
+
+    $redis->on_error(sub{
+        my $redis = shift;
+        warn 'Redis error ', $redis->error, "\n";
+    });
+
+Executes if error occured. Called before commands callbacks.
+
 =head2 C<start>
 
     $redis->start;
@@ -448,6 +533,18 @@ Starts IOLoop. Shortcut for $redis->ioloop->start;
 =head1 SEE ALSO
 
 L<Mojolicious>, L<Mojo::IOLoop>
+
+=head1 SUPPORT
+
+=head2 IRC
+
+    #ru.pm on irc.perl.org
+    
+=head1 DEVELOPMENT
+
+=head2 Repository
+
+    http://github.com/und3f/mojoliciousx-lexicon
 
 =head1 AUTHOR
 
