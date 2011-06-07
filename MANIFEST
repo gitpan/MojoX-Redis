@@ -10,4 +10,5 @@ t/leak.t
 t/pod.t
 t/redis.t
 t/redis_live.t
+t/redis_live_multi.t
 META.yml                                 Module meta-data (added by MakeMaker)

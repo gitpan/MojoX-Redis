@@ -11,8 +11,17 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME         => 'MojoX::Redis',
-    VERSION_FROM => 'lib/MojoX/Redis.pm',
     AUTHOR       => 'Sergey Zasenko <undef@cpan.org>',
-    PREREQ_PM => { 'Mojolicious' => '0.9003' },
-    test => {TESTS => 't/*.t t/*/*.t t/*/*/*.t'}
+    LICENSE      => 'artistic_2',
+    VERSION_FROM => 'lib/MojoX/Redis.pm',
+    ABSTRACT_FROM => 'lib/MojoX/Redis.pm',
+
+    BUILD_REQUIRES => {'Test::More' => '0.88'},
+    PREREQ_PM    => {
+        'Mojolicious'     => '1.22',
+        'Protocol::Redis' => '1.0'
+    },
+    META_MERGE => {
+        resources => {repository => 'http://github.com/und3f/mojox-redis',}
+    }
 );

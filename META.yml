@@ -1,17 +1,20 @@
 --- #YAML:1.0
 name:               MojoX-Redis
-version:            0.7
-abstract:           ~
+version:            0.8
+abstract:           asynchronous Redis client for L<Mojolicious>.
 author:
     - Sergey Zasenko <undef@cpan.org>
-license:            unknown
+license:            artistic_2
 distribution_type:  module
 configure_requires:
     ExtUtils::MakeMaker:  0
 build_requires:
-    ExtUtils::MakeMaker:  0
+    Test::More:  0.88
 requires:
-    Mojolicious:  0.9003
+    Mojolicious:      1.22
+    Protocol::Redis:  1.0
+resources:
+    repository:  http://github.com/und3f/mojox-redis
 no_index:
     directory:
         - t

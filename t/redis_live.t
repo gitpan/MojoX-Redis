@@ -41,14 +41,14 @@ $redis->execute(
   ->execute(rpush => [test => 'test2'])->execute(
     lrange => ['test', 0, -1],
     sub {
-        is_deeply $_[1], ["test1", "test2"], "Multy-bulk result";
+        is_deeply $_[1], [["test1"], ["test2"]], "Multi-bulk result";
     }
   )->execute(set => [test => 'привет'])->execute(
     get => 'test',
     sub { is_deeply $_[1], ['привет'], "Unicode test" }
   )->execute(del => 'test')->execute(
     get => 'test',
-    sub { is_deeply $_[1], [], "Bulk nil return check" }
+    sub { is_deeply $_[1], [undef], "Bulk nil return check" }
   )->execute(
     lrange => ['test', 0, -1],
     sub {
