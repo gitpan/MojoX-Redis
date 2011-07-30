@@ -11,4 +11,5 @@ t/pod.t
 t/redis.t
 t/redis_live.t
 t/redis_live_multi.t
+t/redis_live_pubsub.t
 META.yml                                 Module meta-data (added by MakeMaker)

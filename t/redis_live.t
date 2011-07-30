@@ -10,7 +10,7 @@ use utf8;
 plan skip_all => 'Setup $REDIS_SERVER'
   unless $ENV{REDIS_SERVER};
 
-plan tests => 14;
+plan tests => 15;
 
 use_ok 'MojoX::Redis';
 
@@ -24,43 +24,72 @@ $redis->execute(
     ping => sub {
         is_deeply $_[1], ['PONG'], "Line result test";
     }
-  )->execute(
+);
+
+$redis->execute(
     qwe => sub {
         is_deeply $_[1], undef, 'Uknown command result';
         is $redis->error, q|ERR unknown command 'QWE'|,
           'Unknown command message';
         is $errors, 1, 'on_error works';
     }
-  )->execute(
+);
+
+$redis->execute(
     set => [test => 'test_ok'],
     sub { is_deeply $_[1], ['OK'], "Another line result"; }
-  )->execute(
+);
+
+$redis->execute(
     get => 'test',
     sub { is_deeply $_[1], ['test_ok'], "Bulk result"; }
-  )->execute(del => 'test')->execute(rpush => [test => 'test1'])
+);
+
+$redis->execute(del => 'test')->execute(rpush => [test => 'test1'])
   ->execute(rpush => [test => 'test2'])->execute(
     lrange => ['test', 0, -1],
     sub {
         is_deeply $_[1], [["test1"], ["test2"]], "Multi-bulk result";
     }
-  )->execute(set => [test => 'привет'])->execute(
+  );
+
+$redis->execute(set => [test => 'привет'])->execute(
     get => 'test',
-    sub { is_deeply $_[1], ['привет'], "Unicode test" }
-  )->execute(del => 'test')->execute(
+    sub { ok utf8::is_utf8($_[1]->[0]), "Unicode test" }
+);
+
+$redis->execute(del => 'test');
+$redis->execute(hmset => ['test', key => 'привет']);
+$redis->execute(
+    hmget => [test => 'key'],
+    sub {
+        ok utf8::is_utf8($_[1]->[0]->[0]), "Unicode test on multibulk reply";
+    }
+);
+
+$redis->execute(del => 'test')->execute(
     get => 'test',
     sub { is_deeply $_[1], [undef], "Bulk nil return check" }
-  )->execute(
+);
+
+$redis->execute(
     lrange => ['test', 0, -1],
     sub {
         is_deeply $_[1], [], "Multi-bulk nil return check";
     }
-  )->execute(
+);
+
+$redis->execute(
     ping => sub {
         is_deeply $_[1], ['PONG'], "Last check";
     }
-  )->set(test => 'ok')->get(
+);
+
+$redis->set(test => 'ok')->get(
     test => sub {
         is_deeply $_[1], ['ok'], "Fast command check";
     }
-  )->quit(sub { shift->stop; })->start;
+);
+
+$redis->quit(sub { shift->stop; })->start;
 
