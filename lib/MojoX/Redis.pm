@@ -3,7 +3,7 @@ package MojoX::Redis;
 use strict;
 use warnings;
 
-our $VERSION = 0.81;
+our $VERSION = 0.82;
 use base 'Mojo::Base';
 
 use Mojo::IOLoop;
@@ -304,20 +304,56 @@ MojoX::Redis - asynchronous Redis client for L<Mojolicious>.
             else {
                 print "Error: ", $redis->error, "\n";
             }
-      })
+        }
+    );
 
-      # Work with keys
-      ->set(key => 'value')
+    # Work with keys
+    $redis->set(key => 'value');
 
-      ->get(key => sub {
-          my ($redis, $res) = @_;
+    $redis->get(
+        key => sub {
+            my ($redis, $res) = @_;
 
-          print "Value of ' key ' is $res->[0]\n";
-      })
+            print "Value of 'key' is $res->[0]\n";
+        }
+    );
 
 
-      # Cleanup connection
-      ->quit(sub { shift->stop })->start;
+    # Cleanup connection
+    $redis->quit(sub { shift->stop });
+
+    # Start IOLoop (in case it is not started yet)
+    $redis->start;
+
+Create new Mojo::IOLoop instance if you need to get blocked in a Mojolicious
+application.
+
+    use Mojolicious::Lite;
+    use MojoX::Redis;
+
+    get '/' => sub {
+        my $self = shift;
+
+        my $redis = MojoX::Redis->new(ioloop => Mojo::IOLoop->new);
+
+        my $value;
+
+        $redis->set(foo => 'bar')->get(
+            foo => sub {
+                my ($redis, $result) = @_;
+
+                $redis->quit->stop;
+
+                return app->log->error($redis->error) unless $result;
+
+                $value = $result->[0];
+            }
+        )->start;
+
+        $self->render(text => qq(Foo value is "$value"));
+    };
+
+    app->start;
 
 =head1 DESCRIPTION
 
@@ -402,7 +438,7 @@ $redis->error.
     $redis->execute("ping" => sub {
         my ($redis, $result) = @_;
         die $redis->error unless defined $result;
-    }
+    });
 
 Returns error occured during command execution.
 Note that this method returns error code just from current command and
