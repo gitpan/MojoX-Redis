@@ -7,7 +7,6 @@ MANIFEST			This list of files
 MANIFEST.SKIP
 MYMETA.json
 MYMETA.yml
-README
 t/leak.t
 t/pod.t
 t/redis.t

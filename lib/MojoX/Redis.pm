@@ -3,13 +3,13 @@ package MojoX::Redis;
 use strict;
 use warnings;
 
-our $VERSION = 0.82;
+our $VERSION = 0.83;
 use base 'Mojo::Base';
 
 use Mojo::IOLoop;
 use List::Util   ();
-use Mojo::Util   ();
 use Scalar::Util ();
+use Encode       ();
 require Carp;
 
 __PACKAGE__->attr(server   => '127.0.0.1:6379');
@@ -160,9 +160,9 @@ sub stop {
 sub _create_protocol {
     my $self = shift;
 
-    my $protocol = $self->protocol_redis->new(
-        api        => 1,
-        on_message => sub {
+    my $protocol = $self->protocol_redis->new(api => 1);
+    $protocol->on_message(
+        sub {
             my ($parser, $command) = @_;
             $self->_return_command_data($command);
         }
@@ -182,7 +182,7 @@ sub _send_next_message {
             my $cmd_arg = [];
             my $cmd = {type => '*', data => $cmd_arg};
             foreach my $token (@$args) {
-                Mojo::Util::encode($self->encoding, $token)
+                $token = Encode::encode($self->encoding, $token)
                   if $self->encoding;
                 push @$cmd_arg, {type => '$', data => $token};
             }
@@ -209,7 +209,7 @@ sub _reencode_message {
 
     # Decode data
     if ($type ne '*' && $self->encoding && $data) {
-        Mojo::Util::decode($self->encoding, $data);
+        $data = Encode::decode($self->encoding, $data);
     }
 
     if ($type eq '-') {
@@ -395,12 +395,14 @@ Encoding used for stored data, defaults to C<UTF-8>.
 
 =head2 C<protocol_redis>
 
-    use Protocol::Redis;
-    $redis->protocol_redis("Protocol::Redis");
+    use Protocol::Redis::XS;
+    $redis->protocol_redis("Protocol::Redis::XS");
 
 L<Protocol::Redis> implementation' constructor for parsing. By default
 L<Protocol::Redis> will be used. Parser library must support
 L<APIv1|Protocol::Redis/APIv1>.
+
+Using L<Protocol::Redis::XS> instead of default choice can speedup parsing.
 
 =head1 METHODS
 
