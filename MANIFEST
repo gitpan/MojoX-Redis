@@ -5,12 +5,12 @@ LICENSE
 Makefile.PL
 MANIFEST			This list of files
 MANIFEST.SKIP
-MYMETA.json
-MYMETA.yml
+README.pod
 t/leak.t
 t/pod.t
 t/redis.t
 t/redis_live.t
 t/redis_live_multi.t
+t/redis_live_pubsub.t
 META.yml                                 Module YAML meta-data (added by MakeMaker)
 META.json                                Module JSON meta-data (added by MakeMaker)
