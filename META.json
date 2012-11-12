@@ -1,5 +1,5 @@
 {
-   "abstract" : "asynchronous Redis client for L<Mojolicious>.",
+   "abstract" : "asynchronous Redis client for L <Mojolicious> . (Obsoleted by",
    "author" : [
       "Sergey Zasenko <undef@cpan.org>"
    ],
@@ -50,5 +50,5 @@
          "url" : "http://github.com/und3f/mojox-redis"
       }
    },
-   "version" : "0.84"
+   "version" : "0.85"
 }

@@ -1,5 +1,5 @@
 ---
-abstract: 'asynchronous Redis client for L<Mojolicious>.'
+abstract: 'asynchronous Redis client for L <Mojolicious> . (Obsoleted by'
 author:
   - 'Sergey Zasenko <undef@cpan.org>'
 build_requires:
@@ -25,4 +25,4 @@ resources:
   bugtracker: https://github.com/und3f/mojox-redis/issues
   license: http://dev.perl.org/licenses/
   repository: http://github.com/und3f/mojox-redis
-version: 0.84
+version: 0.85
