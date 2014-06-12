@@ -3,7 +3,7 @@ package MojoX::Redis;
 use strict;
 use warnings;
 
-our $VERSION = 0.85;
+our $VERSION = 0.86;
 use base 'Mojo::Base';
 
 use Mojo::IOLoop;
@@ -283,7 +283,7 @@ __END__
 
 =head1 NAME
 
-MojoX::Redis - asynchronous Redis client for L <Mojolicious> . (Obsoleted by
+MojoX::Redis - asynchronous Redis client for L<Mojolicious>. (Obsoleted by
 L<Mojo::Redis>)
 
 =head1 SYNOPSIS
